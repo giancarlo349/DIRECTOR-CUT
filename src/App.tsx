@@ -298,10 +298,14 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
 
   useEffect(() => {
     // Pre-load a pool of audio objects to prevent lag - Soft Pop style
+    // Using a more stable URL for the pop sound
+    const SOUND_URL = 'https://assets.mixkit.co/sfx/preview/mixkit-simple-soft-click-1116.mp3';
+    
     const sounds = Array.from({ length: 15 }, () => {
-      // Using a softer pop sound
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-      audio.volume = 0.1;
+      const audio = new Audio(SOUND_URL);
+      audio.volume = 0.05;
+      // Pre-load the audio
+      audio.load();
       return audio;
     });
     audioPool.current = sounds;
@@ -310,8 +314,15 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
   const playTypewriterSound = () => {
     if (isAudioOn && audioPool.current.length > 0) {
       const audio = audioPool.current[poolIndex.current];
-      audio.currentTime = 0;
-      audio.play().catch((e) => console.error("Audio play failed:", e));
+      
+      // Only play if the audio is ready or at least not in an error state
+      if (audio.readyState >= 2) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {
+          // Silent catch to avoid console noise if browser blocks auto-play
+        });
+      }
+      
       poolIndex.current = (poolIndex.current + 1) % audioPool.current.length;
     }
   };
@@ -558,7 +569,9 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
   }, [timelines.length]);
 
   const totalSeconds = activeTimeline?.totalDurationSeconds || 90;
-  const activeScenes = (project.scenes || []).filter(s => activeTimeline?.sceneIds?.includes(s.id));
+  const activeScenes = (activeTimeline?.sceneIds || [])
+    .map(id => project.scenes.find(s => s.id === id))
+    .filter((s): s is Scene => !!s);
   const markers = Array.isArray(activeTimeline?.markers) ? activeTimeline.markers : [];
   
   const [hoveredSceneId, setHoveredSceneId] = useState<string | null>(null);
@@ -720,16 +733,16 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
       </div>
 
       {/* Timeline Tabs */}
-      <div className="flex items-center gap-4 overflow-x-auto pb-4 custom-scrollbar">
+      <div className="flex items-center gap-3 p-2 bg-white/5 rounded-3xl border border-white/10 w-fit mb-8">
         {timelines.map(t => (
-          <div key={t.id} className="flex items-center gap-2 group">
+          <div key={t.id} className="flex items-center gap-1">
             <button
               onClick={() => onUpdate({ activeTimelineId: t.id })}
               className={cn(
-                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border",
+                "px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                 activeTimelineId === t.id 
-                  ? "bg-magma text-white border-magma shadow-[0_10px_20px_rgba(255,77,0,0.2)]" 
-                  : "bg-white/5 text-zinc-500 border-white/5 hover:bg-white/10 hover:text-white"
+                  ? "bg-magma text-white shadow-[0_10px_20px_rgba(255,77,0,0.2)]" 
+                  : "text-zinc-500 hover:text-white hover:bg-white/5"
               )}
             >
               {t.name}
@@ -737,34 +750,35 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
             {timelines.length > 1 && (
               <button 
                 onClick={() => deleteTimeline(t.id)}
-                className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                className="w-8 h-8 rounded-xl text-zinc-600 flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" />
               </button>
             )}
           </div>
         ))}
+        <div className="w-[1px] h-6 bg-white/10 mx-2" />
         {isAddingTimeline ? (
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl p-1.5">
+          <div className="flex items-center gap-2 pr-2">
             <input 
               autoFocus
-              placeholder="Nome da Timeline..."
+              placeholder="Nova Timeline..."
               value={newTimelineName}
               onChange={(e) => setNewTimelineName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addTimeline();
                 if (e.key === 'Escape') setIsAddingTimeline(false);
               }}
-              className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 bg-transparent focus:outline-none w-40 text-white"
+              className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 bg-transparent focus:outline-none w-32 text-white border-b border-magma/50"
             />
-            <Button size="sm" variant="helios" onClick={addTimeline} className="rounded-xl px-4">Add</Button>
+            <Button size="sm" variant="helios" onClick={addTimeline} className="rounded-xl h-8 px-3 text-[9px]">Add</Button>
           </div>
         ) : (
           <button 
             onClick={() => setIsAddingTimeline(true)}
-            className="w-12 h-12 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center text-zinc-600 hover:text-white hover:bg-white/10 transition-all flex-shrink-0"
+            className="px-4 py-2.5 rounded-2xl text-[10px] font-bold text-zinc-500 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-3 h-3" /> NOVA
           </button>
         )}
       </div>
@@ -795,7 +809,7 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
                 value={scene}
                 style={{ width: `${((scene.duration || 10) / totalSeconds) * 100}%` }}
                 className={cn(
-                  "h-full border-r border-white/10 flex flex-col items-center justify-center p-2 transition-all group relative cursor-grab active:cursor-grabbing overflow-hidden",
+                  "h-full border-r border-white/10 flex flex-col items-center justify-center p-2 group relative cursor-grab active:cursor-grabbing overflow-hidden",
                   !scene.color && (i % 2 === 0 ? "bg-zinc-800" : "bg-zinc-900")
                 )}
                 onMouseEnter={(e) => {
@@ -1824,111 +1838,155 @@ function App() {
     const margin = 20;
     let y = 20;
 
-    const addText = (text: string, size: number = 12, style: string = 'normal', color: [number, number, number] = [0, 0, 0]) => {
+    const addText = (text: string, size: number = 12, style: string = 'normal', color: [number, number, number] = [30, 30, 30]) => {
       pdf.setFontSize(size);
       pdf.setFont('helvetica', style);
       pdf.setTextColor(color[0], color[1], color[2]);
       const lines = pdf.splitTextToSize(text, pageWidth - (margin * 2));
-      pdf.text(lines, margin, y);
-      y += (lines.length * (size * 0.5)) + 5;
-      if (y > 270) {
+      
+      // Check for page overflow
+      const textHeight = lines.length * (size * 0.5);
+      if (y + textHeight > 270) {
         pdf.addPage();
         y = 20;
       }
+
+      pdf.text(lines, margin, y);
+      y += textHeight + 5;
     };
 
-    const addLine = () => {
-      pdf.setDrawColor(200, 200, 200);
+    const addLine = (color: [number, number, number] = [230, 230, 230]) => {
+      pdf.setDrawColor(color[0], color[1], color[2]);
       pdf.line(margin, y, pageWidth - margin, y);
       y += 10;
     };
 
+    const addSectionHeader = (title: string) => {
+      y += 10;
+      addText(title, 18, 'bold', [255, 77, 0]);
+      addLine([255, 77, 0]);
+    };
+
     // Title Page
-    pdf.setFontSize(40);
+    pdf.setFillColor(10, 10, 10);
+    pdf.rect(0, 0, pageWidth, 297, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(48);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(currentProject.title.toUpperCase(), margin, 50);
-    y = 70;
-    addText(`Criado em: ${new Date(currentProject.createdAt).toLocaleDateString()}`, 10, 'italic', [100, 100, 100]);
-    addText(`Última atualização: ${new Date(currentProject.updatedAt).toLocaleDateString()}`, 10, 'italic', [100, 100, 100]);
+    const titleLines = pdf.splitTextToSize(currentProject.title.toUpperCase(), pageWidth - 40);
+    pdf.text(titleLines, margin, 100);
+    
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('ROTEIRO ORIGINAL & DOCUMENTAÇÃO TÉCNICA', margin, 120);
+    
+    pdf.setDrawColor(255, 77, 0);
+    pdf.setLineWidth(1);
+    pdf.line(margin, 125, margin + 50, 125);
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`CRIADO EM: ${new Date(currentProject.createdAt).toLocaleDateString()}`, margin, 260);
+    pdf.text(`AUTOR: ${user.displayName?.toUpperCase() || 'DIRETOR'}`, margin, 265);
     
     pdf.addPage();
-    y = 20;
+    y = 25;
 
     // 1. Idea / Concept
-    addText('1. CONCEITO GERAL', 18, 'bold', [255, 77, 0]);
-    addLine();
-    addText(`Tema / Premissa: ${currentProject.idea.theme || 'N/A'}`);
-    addText(`Público Alvo: ${currentProject.idea.targetAudience || 'N/A'}`);
-    addText(`Duração Estimada: ${currentProject.idea.duration || 'N/A'}`);
-    addText(`Vibe / Atmosfera: ${currentProject.idea.vibe || 'N/A'}`);
-    addText('Notas de Direção:', 14, 'bold');
-    addText(currentProject.idea.notes || 'N/A');
+    addSectionHeader('01. CONCEITO GERAL');
+    addText('TEMA / PREMISSA', 10, 'bold', [150, 150, 150]);
+    addText(currentProject.idea.theme || 'N/A', 12, 'normal');
+    y += 5;
+    
+    addText('PÚBLICO ALVO', 10, 'bold', [150, 150, 150]);
+    addText(currentProject.idea.targetAudience || 'N/A', 12, 'normal');
+    y += 5;
+
+    addText('DURAÇÃO ESTIMADA', 10, 'bold', [150, 150, 150]);
+    addText(currentProject.idea.duration || 'N/A', 12, 'normal');
+    y += 5;
+
+    addText('VIBE / ATMOSFERA', 10, 'bold', [150, 150, 150]);
+    addText(currentProject.idea.vibe || 'N/A', 12, 'normal');
+    y += 5;
+
+    addText('NOTAS DE DIREÇÃO', 10, 'bold', [150, 150, 150]);
+    addText(currentProject.idea.notes || 'N/A', 11, 'normal');
 
     // 2. Characters
-    pdf.addPage();
-    y = 20;
-    addText('2. PERSONAGENS', 18, 'bold', [255, 77, 0]);
-    addLine();
+    addSectionHeader('02. PERSONAGENS');
     currentProject.characters.forEach(char => {
-      addText(char.name, 14, 'bold');
-      addText(`Traços: ${char.traits || 'N/A'}`, 10, 'italic');
-      addText(char.description || 'N/A');
-      y += 5;
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin - 2, y - 5, pageWidth - (margin * 2) + 4, 25, 'F');
+      addText(char.name.toUpperCase(), 13, 'bold', [0, 0, 0]);
+      addText(`TRAÇOS: ${char.traits || 'N/A'}`, 9, 'italic', [100, 100, 100]);
+      addText(char.description || 'N/A', 11);
+      y += 8;
     });
 
     // 3. Locations
-    pdf.addPage();
-    y = 20;
-    addText('3. LOCAIS', 18, 'bold', [255, 77, 0]);
-    addLine();
+    addSectionHeader('03. LOCAIS');
     currentProject.locations.forEach(loc => {
-      addText(loc.name, 14, 'bold');
-      addText(loc.description || 'N/A');
+      addText(loc.name.toUpperCase(), 13, 'bold');
+      addText(loc.description || 'N/A', 11);
       y += 5;
     });
 
     // 4. Writing / Story
     if (currentProject.writing) {
-      pdf.addPage();
-      y = 20;
-      addText('4. HISTÓRIA & ESTRUTURA', 18, 'bold', [255, 77, 0]);
-      addLine();
-      addText('A História:', 14, 'bold');
-      addText(currentProject.writing.story || 'N/A');
-      y += 10;
-      addText('Estrutura:', 14, 'bold');
-      addText(`Início: ${currentProject.writing.structure.beginning || 'N/A'}`);
-      addText(`Meio: ${currentProject.writing.structure.middle || 'N/A'}`);
-      addText(`Fim: ${currentProject.writing.structure.end || 'N/A'}`);
+      addSectionHeader('04. HISTÓRIA & ESTRUTURA');
+      addText('A NARRATIVA', 12, 'bold');
+      addText(currentProject.writing.story || 'N/A', 11);
+      y += 5;
+      
+      pdf.setDrawColor(240, 240, 240);
+      pdf.rect(margin, y, pageWidth - (margin * 2), 40);
+      const startY = y + 10;
+      pdf.setFontSize(10);
+      pdf.text('INÍCIO:', margin + 5, startY);
+      pdf.text(pdf.splitTextToSize(currentProject.writing.structure.beginning || 'N/A', 50), margin + 5, startY + 5);
+      
+      pdf.text('MEIO:', margin + 65, startY);
+      pdf.text(pdf.splitTextToSize(currentProject.writing.structure.middle || 'N/A', 50), margin + 65, startY + 5);
+      
+      pdf.text('FIM:', margin + 125, startY);
+      pdf.text(pdf.splitTextToSize(currentProject.writing.structure.end || 'N/A', 50), margin + 125, startY + 5);
+      y += 50;
     }
 
     // 5. Script / Scenes
     pdf.addPage();
-    y = 20;
-    addText('5. ROTEIRO DETALHADO', 18, 'bold', [255, 77, 0]);
-    addLine();
+    y = 25;
+    addSectionHeader('05. ROTEIRO DETALHADO');
     currentProject.scenes.forEach(scene => {
-      addText(`CENA #${scene.number}: ${scene.title}`, 14, 'bold');
-      addText(`Câmera: ${scene.cameraPerspective || 'N/A'} | Duração: ${scene.duration}s`, 10, 'italic');
-      addText('Ação / Roteiro:', 11, 'bold');
-      addText(scene.script || 'N/A');
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 5;
+      
+      addText(`CENA ${scene.number}: ${scene.title.toUpperCase()}`, 14, 'bold');
+      addText(`${scene.cameraPerspective || 'N/A'} | ${scene.duration}s`, 9, 'italic', [120, 120, 120]);
+      y += 2;
+      
+      pdf.setFont('courier', 'normal');
+      addText(scene.script || 'N/A', 11, 'normal', [50, 50, 50]);
       y += 10;
     });
 
     // 6. VFX Notes
     if (currentProject.vfxNotes && currentProject.vfxNotes.length > 0) {
-      pdf.addPage();
-      y = 20;
-      addText('6. NOTAS DE VFX', 18, 'bold', [255, 77, 0]);
-      addLine();
+      addSectionHeader('06. NOTAS DE VFX');
       currentProject.vfxNotes.forEach(note => {
-        addText(`${note.type} (Cena: ${note.sceneId || 'Geral'})`, 12, 'bold');
-        addText(note.description || 'N/A');
+        addText(`${note.type.toUpperCase()}`, 11, 'bold', [255, 77, 0]);
+        addText(`CENA: ${note.sceneId || 'GERAL'}`, 9, 'normal', [100, 100, 100]);
+        addText(note.description || 'N/A', 11);
         y += 5;
       });
     }
 
-    pdf.save(`${currentProject.title.replace(/\s+/g, '_')}_Full_Project.pdf`);
+    pdf.save(`${currentProject.title.replace(/\s+/g, '_')}_Master_Script.pdf`);
   };
 
   if (loading) {
