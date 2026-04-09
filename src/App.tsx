@@ -49,7 +49,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { cn } from './lib/utils';
-import { Project, Scene, Character, Location, VFXNote, ProjectIdea, Dialogue, TimelineMarker } from './types';
+import { Project, Scene, Character, Location, VFXNote, ProjectIdea, Dialogue, TimelineMarker, ProjectTimeline } from './types';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -77,21 +77,26 @@ const Background = () => (
 
 const CustomCursor = () => {
   const cursorRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const moveCursor = (e: MouseEvent) => {
       if (cursorRef.current) {
-        cursorRef.current.style.left = `${e.clientX}px`;
-        cursorRef.current.style.top = `${e.clientY}px`;
+        // Use requestAnimationFrame for smoother movement
+        requestAnimationFrame(() => {
+          if (cursorRef.current) {
+            cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+          }
+        });
       }
     };
 
     const handleMouseDown = () => {
-      if (cursorRef.current) cursorRef.current.style.transform = 'translate(-50%, -50%) scale(0.8)';
+      if (innerRef.current) innerRef.current.style.transform = 'translate(-50%, -50%) scale(0.8)';
     };
 
     const handleMouseUp = () => {
-      if (cursorRef.current) cursorRef.current.style.transform = 'translate(-50%, -50%) scale(1)';
+      if (innerRef.current) innerRef.current.style.transform = 'translate(-50%, -50%) scale(1)';
     };
 
     window.addEventListener('mousemove', moveCursor);
@@ -109,8 +114,13 @@ const CustomCursor = () => {
     <div 
       ref={cursorRef}
       id="cursor"
-      className="fixed w-5 h-5 bg-white rounded-full pointer-events-none z-[9999] mix-blend-difference transition-transform duration-100 ease-out -translate-x-1/2 -translate-y-1/2"
-    />
+      className="fixed top-0 left-0 pointer-events-none z-[9999] mix-blend-difference"
+    >
+      <div 
+        ref={innerRef}
+        className="w-5 h-5 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ease-out"
+      />
+    </div>
   );
 };
 
@@ -287,10 +297,11 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
   const poolIndex = useRef(0);
 
   useEffect(() => {
-    // Pre-load a pool of audio objects to prevent lag - Bubble Pop style
+    // Pre-load a pool of audio objects to prevent lag - Soft Pop style
     const sounds = Array.from({ length: 15 }, () => {
+      // Using a softer pop sound
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-      audio.volume = 0.15;
+      audio.volume = 0.1;
       return audio;
     });
     audioPool.current = sounds;
@@ -336,7 +347,7 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
       {isFocusMode ? (
         <div className="h-full flex flex-col relative">
           {/* Focus Mode Header */}
-          <header className="p-12 flex items-start justify-between">
+          <header className="p-12 flex items-start justify-between z-10">
             <div className="space-y-1">
               <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-[0.4em]">UNTITLED MANUSCRIPT</p>
               <h2 className="text-sm font-mono font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-3">
@@ -346,12 +357,16 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
             <div className="flex items-center gap-4">
               <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
                 <span className="text-[9px] font-mono text-zinc-400 uppercase tracking-widest">
-                  SCENE 01: THE AWAKENING
+                  MODO FOCO ATIVO
                 </span>
               </div>
               <button 
-                onClick={() => setIsFocusMode(false)}
-                className="text-zinc-600 hover:text-white transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsFocusMode(false);
+                }}
+                className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all z-[600]"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -399,22 +414,7 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
             </div>
 
             {/* Bottom Controls Bar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/5 p-1 rounded-2xl">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  Grid View
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Variations
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
-                  <Code className="w-3.5 h-3.5" />
-                  Source
-                </button>
-              </div>
-
+            <div className="flex items-center justify-end">
               <button 
                 onClick={() => setIsAudioOn(!isAudioOn)}
                 className="bg-white text-black px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2"
@@ -536,14 +536,50 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
 // --- Timeline Component ---
 
 const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates: Partial<Project>) => void }) => {
-  const totalSeconds = project.idea.totalDurationSeconds || 90;
-  const scenes = project.scenes || [];
-  const markers = project.markers || [];
+  const timelines = project.timelines || [];
+  const activeTimelineId = project.activeTimelineId || (timelines.length > 0 ? timelines[0].id : null);
+  const activeTimeline = timelines.find(t => t.id === activeTimelineId) || (timelines.length > 0 ? timelines[0] : null);
+
+  // Initialize if no timelines exist
+  useEffect(() => {
+    if (timelines.length === 0) {
+      const initialTimeline: ProjectTimeline = {
+        id: 'default',
+        name: 'Timeline Principal',
+        totalDurationSeconds: project.idea.totalDurationSeconds || 90,
+        markers: project.markers || [],
+        sceneIds: project.scenes.map(s => s.id)
+      };
+      onUpdate({ 
+        timelines: [initialTimeline], 
+        activeTimelineId: 'default' 
+      });
+    }
+  }, [timelines.length]);
+
+  const totalSeconds = activeTimeline?.totalDurationSeconds || 90;
+  const activeScenes = (project.scenes || []).filter(s => activeTimeline?.sceneIds?.includes(s.id));
+  const markers = Array.isArray(activeTimeline?.markers) ? activeTimeline.markers : [];
+  
   const [hoveredSceneId, setHoveredSceneId] = useState<string | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [isAddingMarker, setIsAddingMarker] = useState(false);
   const [newMarkerLabel, setNewMarkerLabel] = useState('');
+  const [isAddingTimeline, setIsAddingTimeline] = useState(false);
+  const [newTimelineName, setNewTimelineName] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timelineTrackRef = useRef<HTMLDivElement>(null);
   const markersTrackRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (timelineTrackRef.current) {
+      const rect = timelineTrackRef.current.getBoundingClientRect();
+      setHoverPosition({ 
+        x: e.clientX - rect.left, 
+        y: e.clientY - rect.top 
+      });
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -551,40 +587,83 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const addTimeline = () => {
+    if (newTimelineName.trim()) {
+      const newTimeline: ProjectTimeline = {
+        id: Date.now().toString(),
+        name: newTimelineName.trim(),
+        totalDurationSeconds: 90,
+        markers: [],
+        sceneIds: []
+      };
+      onUpdate({ 
+        timelines: [...timelines, newTimeline],
+        activeTimelineId: newTimeline.id
+      });
+      setNewTimelineName('');
+      setIsAddingTimeline(false);
+    }
+  };
+
+  const deleteTimeline = (id: string) => {
+    const newTimelines = timelines.filter(t => t.id !== id);
+    onUpdate({ 
+      timelines: newTimelines,
+      activeTimelineId: activeTimelineId === id ? (newTimelines[0]?.id || null) : activeTimelineId
+    });
+  };
+
   const addMarker = () => {
-    if (newMarkerLabel.trim()) {
+    if (newMarkerLabel.trim() && activeTimeline) {
       const newMarker: TimelineMarker = {
         id: Date.now().toString(),
         time: 0,
         label: newMarkerLabel.trim(),
-        color: '#ef4444'
+        color: '#f27d26'
       };
-      onUpdate({ markers: [...markers, newMarker] });
+      const currentMarkers = Array.isArray(activeTimeline.markers) ? activeTimeline.markers : [];
+      const updatedTimeline = { ...activeTimeline, markers: [...currentMarkers, newMarker] };
+      onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
       setNewMarkerLabel('');
       setIsAddingMarker(false);
     }
   };
 
   const updateMarker = (id: string, time: number) => {
+    if (!activeTimeline) return;
     const newMarkers = markers.map(m => m.id === id ? { ...m, time: Math.max(0, Math.min(totalSeconds, time)) } : m);
-    onUpdate({ markers: newMarkers });
+    const updatedTimeline = { ...activeTimeline, markers: newMarkers };
+    onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
   };
 
   const deleteMarker = (id: string) => {
-    onUpdate({ markers: markers.filter(m => m.id !== id) });
+    if (!activeTimeline) return;
+    const updatedTimeline = { ...activeTimeline, markers: markers.filter(m => m.id !== id) };
+    onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
   };
 
   const updateSceneDuration = (sceneId: string, duration: number) => {
-    const newScenes = scenes.map(s => s.id === sceneId ? { ...s, duration: Math.max(1, duration) } : s);
+    const newScenes = project.scenes.map(s => s.id === sceneId ? { ...s, duration: Math.max(1, duration) } : s);
     onUpdate({ scenes: newScenes });
   };
 
   const handleReorder = (newOrder: Scene[]) => {
-    const updatedScenes = newOrder.map((s, i) => ({ ...s, order: i }));
-    onUpdate({ scenes: updatedScenes });
+    if (!activeTimeline) return;
+    const updatedTimeline = { ...activeTimeline, sceneIds: newOrder.map(s => s.id) };
+    onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
   };
 
-  const usedSeconds = scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
+  const toggleSceneInTimeline = (sceneId: string) => {
+    if (!activeTimeline) return;
+    const currentSceneIds = Array.isArray(activeTimeline.sceneIds) ? activeTimeline.sceneIds : [];
+    const sceneIds = currentSceneIds.includes(sceneId)
+      ? currentSceneIds.filter(id => id !== sceneId)
+      : [...currentSceneIds, sceneId];
+    const updatedTimeline = { ...activeTimeline, sceneIds };
+    onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
+  };
+
+  const usedSeconds = activeScenes.reduce((acc, s) => acc + (s.duration || 0), 0);
   const remainingSeconds = totalSeconds - usedSeconds;
 
   return (
@@ -605,7 +684,12 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
               <input 
                 type="number"
                 value={totalSeconds}
-                onChange={(e) => onUpdate({ idea: { ...project.idea, totalDurationSeconds: parseInt(e.target.value) || 0 } })}
+                onChange={(e) => {
+                  if (activeTimeline) {
+                    const updatedTimeline = { ...activeTimeline, totalDurationSeconds: parseInt(e.target.value) || 0 };
+                    onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
+                  }
+                }}
                 className="text-3xl font-display bg-transparent border-none focus:outline-none text-right w-24 text-helios-orange"
               />
               <span className="text-sm font-bold text-zinc-500">SEC</span>
@@ -635,8 +719,58 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
         </div>
       </div>
 
+      {/* Timeline Tabs */}
+      <div className="flex items-center gap-4 overflow-x-auto pb-4 custom-scrollbar">
+        {timelines.map(t => (
+          <div key={t.id} className="flex items-center gap-2 group">
+            <button
+              onClick={() => onUpdate({ activeTimelineId: t.id })}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border",
+                activeTimelineId === t.id 
+                  ? "bg-magma text-white border-magma shadow-[0_10px_20px_rgba(255,77,0,0.2)]" 
+                  : "bg-white/5 text-zinc-500 border-white/5 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              {t.name}
+            </button>
+            {timelines.length > 1 && (
+              <button 
+                onClick={() => deleteTimeline(t.id)}
+                className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {isAddingTimeline ? (
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl p-1.5">
+            <input 
+              autoFocus
+              placeholder="Nome da Timeline..."
+              value={newTimelineName}
+              onChange={(e) => setNewTimelineName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addTimeline();
+                if (e.key === 'Escape') setIsAddingTimeline(false);
+              }}
+              className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 bg-transparent focus:outline-none w-40 text-white"
+            />
+            <Button size="sm" variant="helios" onClick={addTimeline} className="rounded-xl px-4">Add</Button>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setIsAddingTimeline(true)}
+            className="w-12 h-12 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center text-zinc-600 hover:text-white hover:bg-white/10 transition-all flex-shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
       {/* Visual Timeline */}
-      <div className="glass-card p-10 overflow-visible relative">
+      <div ref={timelineTrackRef} className="glass-card p-10 overflow-visible relative">
         {/* Time Rulers */}
         <div className="flex justify-between mb-6 px-2">
           {[0, 0.25, 0.5, 0.75, 1].map((p) => (
@@ -651,11 +785,11 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
         <div className="relative h-32 bg-white/5 rounded-2xl border border-white/5 flex overflow-visible">
           <Reorder.Group 
             axis="x" 
-            values={scenes} 
+            values={activeScenes} 
             onReorder={handleReorder}
             className="flex h-full w-full"
           >
-            {scenes.map((scene, i) => (
+            {activeScenes.map((scene, i) => (
               <Reorder.Item 
                 key={scene.id}
                 value={scene}
@@ -666,10 +800,10 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
                 )}
                 onMouseEnter={(e) => {
                   setHoveredSceneId(scene.id);
-                  setHoverPosition({ x: e.clientX, y: e.clientY });
+                  handleMouseMove(e);
                 }}
                 onMouseLeave={() => setHoveredSceneId(null)}
-                onMouseMove={(e) => setHoverPosition({ x: e.clientX, y: e.clientY })}
+                onMouseMove={handleMouseMove}
               >
                 {/* Custom Color Background */}
                 {scene.color && (
@@ -730,15 +864,16 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               style={{ 
-                position: 'fixed',
-                left: Math.min(window.innerWidth - 320, hoverPosition.x + 20),
-                top: Math.max(20, hoverPosition.y - 280),
-                zIndex: 100
+                position: 'absolute',
+                left: hoverPosition.x,
+                top: hoverPosition.y - 20,
+                zIndex: 100,
+                transform: 'translate(-50%, -100%)'
               }}
               className="w-72 glass-card p-6 pointer-events-none shadow-2xl border-magma/30 bg-obsidian/90 backdrop-blur-3xl"
             >
               {(() => {
-                const scene = scenes.find(s => s.id === hoveredSceneId);
+                const scene = project.scenes.find(s => s.id === hoveredSceneId);
                 if (!scene) return null;
                 return (
                   <div className="space-y-4">
@@ -767,7 +902,7 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
           ref={markersTrackRef} 
           className="relative h-12 mt-8 bg-white/5 rounded-2xl border border-dashed border-white/10 cursor-crosshair group/track"
           onClick={(e) => {
-            if (e.target === markersTrackRef.current) {
+            if (e.target === markersTrackRef.current && activeTimeline) {
               const rect = markersTrackRef.current.getBoundingClientRect();
               const relativeX = e.clientX - rect.left;
               const time = (relativeX / rect.width) * totalSeconds;
@@ -776,9 +911,10 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
                 id: Date.now().toString(),
                 time: Math.max(0, Math.min(totalSeconds, time)),
                 label: `Ponto ${markers.length + 1}`,
-                color: '#F27D26'
+                color: '#f27d26'
               };
-              onUpdate({ markers: [...markers, newMarker] });
+              const updatedTimeline = { ...activeTimeline, markers: [...activeTimeline.markers, newMarker] };
+              onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
             }
           }}
         >
@@ -825,27 +961,38 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="glass-card p-8">
           <h4 className="cinematic-title text-xl mb-6 flex items-center gap-3">
-            <Layers className="w-5 h-5 text-helios-orange" /> Duração das Cenas
+            <Layers className="w-5 h-5 text-helios-orange" /> Gerenciar Cenas nesta Timeline
           </h4>
-          <div className="space-y-4">
-            {scenes.map((scene) => (
-              <div key={scene.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 group hover:border-helios-orange/30 transition-all">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+            {project.scenes.map((scene) => (
+              <div 
+                key={scene.id} 
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer",
+                  activeTimeline?.sceneIds.includes(scene.id)
+                    ? "bg-magma/10 border-magma/30"
+                    : "bg-white/5 border-white/5 opacity-50 grayscale hover:grayscale-0 hover:opacity-100"
+                )}
+                onClick={() => toggleSceneInTimeline(scene.id)}
+              >
                 <div className="flex items-center gap-4">
-                  <span className="text-xs font-black opacity-20 group-hover:opacity-100 transition-opacity">#{scene.number}</span>
+                  <span className="text-xs font-black opacity-20">#{scene.number}</span>
                   <p className="text-sm font-bold text-white">{scene.title}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <input 
-                    type="number"
-                    value={scene.duration || 0}
-                    onChange={(e) => updateSceneDuration(scene.id, parseInt(e.target.value) || 0)}
-                    className="w-20 px-3 py-2 bg-helios-black border border-white/10 rounded-xl text-sm font-mono text-right text-helios-orange focus:outline-none focus:border-helios-orange/50"
-                  />
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">sec</span>
+                  <span className="text-[10px] font-mono text-zinc-500">{scene.duration || 0}s</span>
+                  <div className={cn(
+                    "w-5 h-5 rounded-full border flex items-center justify-center transition-all",
+                    activeTimeline?.sceneIds.includes(scene.id)
+                      ? "bg-magma border-magma text-white"
+                      : "border-white/20"
+                  )}>
+                    {activeTimeline?.sceneIds.includes(scene.id) && <Plus className="w-3 h-3 rotate-45" />}
+                  </div>
                 </div>
               </div>
             ))}
-            {scenes.length === 0 && (
+            {project.scenes.length === 0 && (
               <div className="py-12 flex flex-col items-center justify-center text-zinc-600">
                 <Edit3 className="w-10 h-10 mb-3 opacity-10" />
                 <p className="text-sm italic">Adicione cenas no roteiro para vê-las aqui.</p>
@@ -867,7 +1014,8 @@ const Timeline = ({ project, onUpdate }: { project: Project, onUpdate: (updates:
                     value={marker.label}
                     onChange={(e) => {
                       const newMarkers = markers.map(m => m.id === marker.id ? { ...m, label: e.target.value } : m);
-                      onUpdate({ markers: newMarkers });
+                      const updatedTimeline = { ...activeTimeline!, markers: newMarkers };
+                      onUpdate({ timelines: timelines.map(t => t.id === activeTimelineId ? updatedTimeline : t) });
                     }}
                     className="bg-transparent border-none focus:outline-none text-sm font-bold text-white w-full"
                   />
@@ -1537,6 +1685,12 @@ function App() {
               locations: project.locations ? Object.values(project.locations) : [],
               vfxNotes: project.vfxNotes ? Object.values(project.vfxNotes) : [],
               markers: project.markers ? Object.values(project.markers) : [],
+              timelines: project.timelines ? Object.values(project.timelines).map((t: any) => ({
+                ...t,
+                markers: t.markers ? Object.values(t.markers) : [],
+                sceneIds: t.sceneIds ? Object.values(t.sceneIds) : []
+              })) : [],
+              activeTimelineId: project.activeTimelineId || null,
             };
           });
           setProjects(projectList as Project[]);
@@ -1626,7 +1780,9 @@ function App() {
         characters: [],
         locations: [],
         vfxNotes: [],
-        markers: []
+        markers: [],
+        timelines: [],
+        activeTimelineId: null
       };
       await set(newProjectRef, newProject);
       setCurrentProjectId(newProjectRef.key);
@@ -1663,18 +1819,116 @@ function App() {
   const exportPDF = async () => {
     if (!currentProject) return;
     
-    const element = document.getElementById('pdf-content');
-    if (!element) return;
-
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    let y = 20;
+
+    const addText = (text: string, size: number = 12, style: string = 'normal', color: [number, number, number] = [0, 0, 0]) => {
+      pdf.setFontSize(size);
+      pdf.setFont('helvetica', style);
+      pdf.setTextColor(color[0], color[1], color[2]);
+      const lines = pdf.splitTextToSize(text, pageWidth - (margin * 2));
+      pdf.text(lines, margin, y);
+      y += (lines.length * (size * 0.5)) + 5;
+      if (y > 270) {
+        pdf.addPage();
+        y = 20;
+      }
+    };
+
+    const addLine = () => {
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 10;
+    };
+
+    // Title Page
+    pdf.setFontSize(40);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(currentProject.title.toUpperCase(), margin, 50);
+    y = 70;
+    addText(`Criado em: ${new Date(currentProject.createdAt).toLocaleDateString()}`, 10, 'italic', [100, 100, 100]);
+    addText(`Última atualização: ${new Date(currentProject.updatedAt).toLocaleDateString()}`, 10, 'italic', [100, 100, 100]);
     
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${currentProject.title.replace(/\s+/g, '_')}_Director_Cut.pdf`);
+    pdf.addPage();
+    y = 20;
+
+    // 1. Idea / Concept
+    addText('1. CONCEITO GERAL', 18, 'bold', [255, 77, 0]);
+    addLine();
+    addText(`Tema / Premissa: ${currentProject.idea.theme || 'N/A'}`);
+    addText(`Público Alvo: ${currentProject.idea.targetAudience || 'N/A'}`);
+    addText(`Duração Estimada: ${currentProject.idea.duration || 'N/A'}`);
+    addText(`Vibe / Atmosfera: ${currentProject.idea.vibe || 'N/A'}`);
+    addText('Notas de Direção:', 14, 'bold');
+    addText(currentProject.idea.notes || 'N/A');
+
+    // 2. Characters
+    pdf.addPage();
+    y = 20;
+    addText('2. PERSONAGENS', 18, 'bold', [255, 77, 0]);
+    addLine();
+    currentProject.characters.forEach(char => {
+      addText(char.name, 14, 'bold');
+      addText(`Traços: ${char.traits || 'N/A'}`, 10, 'italic');
+      addText(char.description || 'N/A');
+      y += 5;
+    });
+
+    // 3. Locations
+    pdf.addPage();
+    y = 20;
+    addText('3. LOCAIS', 18, 'bold', [255, 77, 0]);
+    addLine();
+    currentProject.locations.forEach(loc => {
+      addText(loc.name, 14, 'bold');
+      addText(loc.description || 'N/A');
+      y += 5;
+    });
+
+    // 4. Writing / Story
+    if (currentProject.writing) {
+      pdf.addPage();
+      y = 20;
+      addText('4. HISTÓRIA & ESTRUTURA', 18, 'bold', [255, 77, 0]);
+      addLine();
+      addText('A História:', 14, 'bold');
+      addText(currentProject.writing.story || 'N/A');
+      y += 10;
+      addText('Estrutura:', 14, 'bold');
+      addText(`Início: ${currentProject.writing.structure.beginning || 'N/A'}`);
+      addText(`Meio: ${currentProject.writing.structure.middle || 'N/A'}`);
+      addText(`Fim: ${currentProject.writing.structure.end || 'N/A'}`);
+    }
+
+    // 5. Script / Scenes
+    pdf.addPage();
+    y = 20;
+    addText('5. ROTEIRO DETALHADO', 18, 'bold', [255, 77, 0]);
+    addLine();
+    currentProject.scenes.forEach(scene => {
+      addText(`CENA #${scene.number}: ${scene.title}`, 14, 'bold');
+      addText(`Câmera: ${scene.cameraPerspective || 'N/A'} | Duração: ${scene.duration}s`, 10, 'italic');
+      addText('Ação / Roteiro:', 11, 'bold');
+      addText(scene.script || 'N/A');
+      y += 10;
+    });
+
+    // 6. VFX Notes
+    if (currentProject.vfxNotes && currentProject.vfxNotes.length > 0) {
+      pdf.addPage();
+      y = 20;
+      addText('6. NOTAS DE VFX', 18, 'bold', [255, 77, 0]);
+      addLine();
+      currentProject.vfxNotes.forEach(note => {
+        addText(`${note.type} (Cena: ${note.sceneId || 'Geral'})`, 12, 'bold');
+        addText(note.description || 'N/A');
+        y += 5;
+      });
+    }
+
+    pdf.save(`${currentProject.title.replace(/\s+/g, '_')}_Full_Project.pdf`);
   };
 
   if (loading) {

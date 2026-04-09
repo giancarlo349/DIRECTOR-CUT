@@ -55,6 +55,14 @@ export interface ProjectIdea {
   notes: string;
 }
 
+export interface ProjectTimeline {
+  id: string;
+  name: string;
+  totalDurationSeconds: number;
+  markers: TimelineMarker[];
+  sceneIds: string[]; // List of scene IDs in this timeline
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -66,7 +74,9 @@ export interface Project {
   characters: Character[];
   locations: Location[];
   vfxNotes: VFXNote[];
-  markers: TimelineMarker[];
+  markers: TimelineMarker[]; // Legacy field for backward compatibility
+  timelines?: ProjectTimeline[];
+  activeTimelineId?: string;
   writing?: {
     story: string;
     structure: {
