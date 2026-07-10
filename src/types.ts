@@ -13,8 +13,10 @@ export interface Location {
 
 export interface Dialogue {
   id: string;
-  characterId: string;
+  characterId?: string;
+  character: string;
   text: string;
+  parenthetical?: string;
 }
 
 export interface Scene {
@@ -29,6 +31,14 @@ export interface Scene {
   duration: number; // in seconds
   order: number;
   color?: string; // RGB or Hex
+  
+  // Slate / Claquete fields for cinema standard
+  roll?: string;
+  take?: string;
+  slateScene?: string;
+  dayNight?: 'DAY' | 'NIGHT' | '';
+  intExt?: 'INT' | 'EXT' | '';
+  soundMos?: 'SOUND' | 'MOS' | '';
 }
 
 export interface TimelineMarker {
@@ -63,6 +73,22 @@ export interface ProjectTimeline {
   sceneIds: string[]; // List of scene IDs in this timeline
 }
 
+export interface NoteBlock {
+  id: string;
+  title: string;
+  content: string;
+  category: string; // e.g. "Materiais", "Equipe", "Tarefas", "Geral"
+}
+
+export interface ReferenceItem {
+  id: string;
+  title: string;
+  type: 'link' | 'image';
+  url: string;
+  description?: string;
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -77,6 +103,8 @@ export interface Project {
   markers: TimelineMarker[]; // Legacy field for backward compatibility
   timelines?: ProjectTimeline[];
   activeTimelineId?: string;
+  noteBlocks?: NoteBlock[];
+  references?: ReferenceItem[];
   writing?: {
     story: string;
     structure: {

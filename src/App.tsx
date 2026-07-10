@@ -34,6 +34,8 @@ import {
   Maximize2,
   GripVertical,
   GripHorizontal,
+  Eye,
+  EyeOff,
   Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
@@ -52,6 +54,10 @@ import { cn } from './lib/utils';
 import { Project, Scene, Character, Location, VFXNote, ProjectIdea, Dialogue, TimelineMarker, ProjectTimeline } from './types';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { ProductionTab } from './components/ProductionTab';
+import { DialogueTab } from './components/DialogueTab';
+import { NotesTab } from './components/NotesTab';
+import { AutocompleteTextArea } from './components/AutocompleteTextArea';
 
 // --- Background & Effects ---
 
@@ -82,7 +88,6 @@ const CustomCursor = () => {
   useEffect(() => {
     const moveCursor = (e: MouseEvent) => {
       if (cursorRef.current) {
-        // Use requestAnimationFrame for smoother movement
         requestAnimationFrame(() => {
           if (cursorRef.current) {
             cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
@@ -92,7 +97,7 @@ const CustomCursor = () => {
     };
 
     const handleMouseDown = () => {
-      if (innerRef.current) innerRef.current.style.transform = 'translate(-50%, -50%) scale(0.8)';
+      if (innerRef.current) innerRef.current.style.transform = 'translate(-50%, -50%) scale(0.65)';
     };
 
     const handleMouseUp = () => {
@@ -118,7 +123,7 @@ const CustomCursor = () => {
     >
       <div 
         ref={innerRef}
-        className="w-5 h-5 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ease-out"
+        className="w-2.5 h-2.5 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 ease-out"
       />
     </div>
   );
@@ -387,7 +392,7 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
           {/* Focus Mode Content */}
           <main className="flex-1 flex flex-col items-center justify-center px-12 max-w-5xl mx-auto w-full">
             <div className="w-full relative group">
-              <TextArea 
+              <AutocompleteTextArea 
                 value={writing.story}
                 onChange={(val) => {
                   updateWriting({ ...writing, story: val });
@@ -395,8 +400,8 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
                 }}
                 placeholder="Em um dia suave..."
                 rows={15}
-                className="bg-transparent border-none p-0"
-                inputClassName="bg-transparent border-none p-0 text-2xl md:text-3xl font-light leading-relaxed text-zinc-200 placeholder:text-zinc-800 focus:ring-0 selection:bg-white/10 caret-white text-center"
+                className="bg-transparent border-none p-0 text-2xl md:text-3xl font-light leading-relaxed text-zinc-200 placeholder:text-zinc-800 focus:ring-0 selection:bg-white/10 caret-white text-center focus:border-transparent"
+                project={project}
               />
               
               {/* Centered Dot Indicator */}
@@ -451,12 +456,13 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
                 </button>
               </div>
               
-              <TextArea 
+              <AutocompleteTextArea 
                 value={writing.story}
                 onChange={(val) => updateWriting({ ...writing, story: val })}
                 placeholder="Comece a escrever sua história aqui..."
                 rows={25}
-                inputClassName="text-base text-zinc-300"
+                className="text-base text-zinc-300 bg-glass border border-border rounded-2xl"
+                project={project}
               />
             </div>
           </div>
@@ -470,11 +476,13 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-helios-orange" /> Início / Setup
                   </label>
-                  <TextArea 
+                  <AutocompleteTextArea 
                     value={writing.structure.beginning}
                     onChange={(val) => updateWriting({ ...writing, structure: { ...writing.structure, beginning: val } })}
                     placeholder="Como tudo começa?"
                     rows={3}
+                    className="bg-glass border border-border rounded-2xl text-zinc-300"
+                    project={project}
                   />
                 </div>
 
@@ -482,11 +490,13 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-helios-orange" /> Meio / Confronto
                   </label>
-                  <TextArea 
+                  <AutocompleteTextArea 
                     value={writing.structure.middle}
                     onChange={(val) => updateWriting({ ...writing, structure: { ...writing.structure, middle: val } })}
                     placeholder="Qual o grande desafio?"
                     rows={3}
+                    className="bg-glass border border-border rounded-2xl text-zinc-300"
+                    project={project}
                   />
                 </div>
 
@@ -494,11 +504,13 @@ const Writing = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-helios-orange" /> Fim / Resolução
                   </label>
-                  <TextArea 
+                  <AutocompleteTextArea 
                     value={writing.structure.end}
                     onChange={(val) => updateWriting({ ...writing, structure: { ...writing.structure, end: val } })}
                     placeholder="Como termina?"
                     rows={3}
+                    className="bg-glass border border-border rounded-2xl text-zinc-300"
+                    project={project}
                   />
                 </div>
               </div>
@@ -1303,6 +1315,7 @@ const IdeaTab = ({ project, onUpdate }: { project: Project, onUpdate: (updates: 
 };
 
 const ScriptTab = ({ project, onUpdate, handleReorderScenes }: { project: Project, onUpdate: (updates: Partial<Project>) => void, handleReorderScenes: (newScenes: Scene[]) => void }) => {
+  const [isGridView, setIsGridView] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -1339,30 +1352,41 @@ const ScriptTab = ({ project, onUpdate, handleReorderScenes }: { project: Projec
       exit={{ opacity: 0, y: -10 }}
       className="space-y-8"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="cinematic-title text-5xl">Roteiro</h3>
           <p className="text-zinc-500 font-medium italic mt-2">A alma visual e narrativa do seu filme.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5">
-            <Button 
-              onClick={() => scroll('left')} 
-              variant="ghost" 
-              size="sm" 
-              className="rounded-full hover:bg-white/10 text-zinc-400 hover:text-white w-10 h-10 p-0 flex items-center justify-center"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <Button 
-              onClick={() => scroll('right')} 
-              variant="ghost" 
-              size="sm" 
-              className="rounded-full hover:bg-white/10 text-zinc-400 hover:text-white w-10 h-10 p-0 flex items-center justify-center"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <Button 
+            onClick={() => setIsGridView(!isGridView)} 
+            variant={isGridView ? "helios" : "outline"} 
+            className="gap-3 h-14 px-6 border-white/10"
+          >
+            {isGridView ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {isGridView ? "Modo Organização" : "Ver Roteiro Completo"}
+          </Button>
+
+          {!isGridView && (
+            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5">
+              <Button 
+                onClick={() => scroll('left')} 
+                variant="ghost" 
+                size="sm" 
+                className="rounded-full hover:bg-white/10 text-zinc-400 hover:text-white w-10 h-10 p-0 flex items-center justify-center"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <Button 
+                onClick={() => scroll('right')} 
+                variant="ghost" 
+                size="sm" 
+                className="rounded-full hover:bg-white/10 text-zinc-400 hover:text-white w-10 h-10 p-0 flex items-center justify-center"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
           <Button onClick={() => {
             const scenes = [...(project.scenes || [])];
             scenes.push({
@@ -1384,136 +1408,360 @@ const ScriptTab = ({ project, onUpdate, handleReorderScenes }: { project: Projec
         </div>
       </div>
 
-      <div 
-        ref={scrollRef}
-        className="w-full overflow-x-auto custom-scrollbar pb-10 -mx-4 px-4"
-      >
-        <Reorder.Group 
-          axis="x" 
-          values={project.scenes || []} 
-          onReorder={handleReorderScenes}
-          className="flex gap-8 pb-8 snap-x min-w-max items-start"
-        >
-          {(project.scenes || []).map((scene, index) => (
-            <Reorder.Item 
+      {isGridView ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {(project.scenes || []).map((scene) => (
+            <motion.div 
               key={scene.id} 
-              value={scene}
-              className="glass-card overflow-hidden relative group/scene h-fit min-w-[450px] w-[450px] snap-center flex-shrink-0 cursor-grab active:cursor-grabbing hover:border-magma/30 transition-colors"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-card p-6 md:p-8 space-y-6 border border-white/5 hover:border-magma/30 transition-colors flex flex-col justify-between"
             >
-            <div className="absolute top-0 left-0 w-full h-1.5 transition-colors" style={{ backgroundColor: scene.color || '#F27D26' }} />
-            
-            <div className="bg-white/5 px-6 py-4 flex items-center justify-between border-b border-white/5">
-              <div className="flex items-center gap-4">
-                <GripHorizontal className="w-4 h-4 text-zinc-700 cursor-grab active:cursor-grabbing" />
-                <span className="text-2xl font-display opacity-10 tracking-tighter">#{scene.number}</span>
-                <input 
-                  value={scene.title}
-                  onChange={(e) => {
-                    const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, title: e.target.value } : s);
-                    onUpdate({ scenes });
-                  }}
-                  className="bg-transparent border-none focus:outline-none cinematic-title text-lg p-0 text-white w-full"
-                  placeholder="Título da Cena"
-                />
-              </div>
-              <div className="flex items-center gap-4">
-                <button onClick={() => {
-                  const scenes = project.scenes.filter(s => s.id !== scene.id).map((s, i) => ({ ...s, number: i + 1 }));
-                  onUpdate({ scenes });
-                }} className="text-zinc-600 hover:text-red-500 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                    <Camera className="w-3 h-3" /> Câmera
-                  </label>
-                  <input 
-                    placeholder="Perspectiva..."
-                    value={scene.cameraPerspective}
-                    onChange={(e) => {
-                      const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, cameraPerspective: e.target.value } : s);
-                      onUpdate({ scenes });
-                    }}
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2 focus:outline-none focus:border-magma/50 transition-all text-xs font-medium text-white"
-                  />
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-mono text-magma font-black">#{scene.number}</span>
+                    <input 
+                      value={scene.title}
+                      onChange={(e) => {
+                        const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, title: e.target.value } : s);
+                        onUpdate({ scenes });
+                      }}
+                      className="bg-transparent border-none focus:outline-none cinematic-title text-xl p-0 text-white w-full font-bold"
+                      placeholder="Título da Cena"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono">
+                    <span>{scene.cameraPerspective || 'CÂMERA N/A'}</span>
+                    <span>|</span>
+                    <span>{scene.duration}s</span>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                    <Clock className="w-3 h-3" /> Duração
-                  </label>
-                  <input 
-                    type="number"
-                    value={scene.duration}
-                    onChange={(e) => {
-                      const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, duration: parseInt(e.target.value) || 0 } : s);
-                      onUpdate({ scenes });
-                    }}
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2 focus:outline-none focus:border-magma/50 transition-all text-xs font-medium text-white"
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                  <ImageIcon className="w-3 h-3" /> Preview Visual
-                </label>
-                <div 
-                  className="aspect-video bg-obsidian/50 rounded-2xl border border-dashed border-white/5 flex items-center justify-center overflow-hidden group/thumb relative"
-                  onClick={() => document.getElementById(`file-${scene.id}`)?.click()}
-                >
-                  {scene.visualPreview ? (
-                    <img src={scene.visualPreview} className="w-full h-full object-cover" alt="Preview" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-zinc-700 group-hover/thumb:text-zinc-400 transition-colors">
-                      <Plus className="w-6 h-6" />
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Upload Frame</span>
+                {/* Body Split */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Col: Visual Preview & Slate Info (span 5) */}
+                  <div className="lg:col-span-5 space-y-4">
+                    {scene.visualPreview ? (
+                      <div className="aspect-video rounded-xl overflow-hidden border border-white/10 shadow-lg">
+                        <img src={scene.visualPreview} className="w-full h-full object-cover" alt="Preview" />
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-zinc-950/80 rounded-xl border border-dashed border-white/5 flex flex-col items-center justify-center text-zinc-600 gap-1.5">
+                        <span className="text-[8px] font-mono uppercase tracking-widest">Sem Imagem</span>
+                      </div>
+                    )}
+
+                    {/* Mini Slate Display */}
+                    <div className="bg-zinc-950 p-3.5 rounded-xl border border-white/5 font-mono text-[9px] uppercase space-y-2 text-zinc-400">
+                      <p className="text-[7px] text-zinc-600 font-black tracking-widest border-b border-white/5 pb-1">CLAQUETE</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <span className="text-zinc-600 block text-[6px]">ROLL</span>
+                          <strong className="text-white text-xs">{scene.roll || '--'}</strong>
+                        </div>
+                        <div>
+                          <span className="text-zinc-600 block text-[6px]">SCENE</span>
+                          <strong className="text-white text-xs">{scene.slateScene || scene.number}</strong>
+                        </div>
+                        <div>
+                          <span className="text-zinc-600 block text-[6px]">TAKE</span>
+                          <strong className="text-white text-xs">{scene.take || '--'}</strong>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 pt-2 border-t border-white/5 text-[7px] text-center">
+                        <span className="bg-white/5 rounded px-1.5 py-0.5 text-zinc-300 font-bold">{scene.intExt || '--'}</span>
+                        <span className="bg-white/5 rounded px-1.5 py-0.5 text-zinc-300 font-bold">{scene.dayNight === 'DAY' ? 'DIA' : scene.dayNight === 'NIGHT' ? 'NOITE' : '--'}</span>
+                        <span className="bg-white/5 rounded px-1.5 py-0.5 text-zinc-300 font-bold">{scene.soundMos || '--'}</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Right Col: Action text and Dialogues list (span 7) */}
+                  <div className="lg:col-span-7 space-y-4">
+                    {/* Action */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Roteiro / Ação</span>
+                      <p className="text-xs text-zinc-300 leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5 italic">
+                        {scene.script || 'Nenhuma ação descrita ainda.'}
+                      </p>
+                    </div>
+
+                    {/* Dialogues */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Falas / Diálogos</span>
+                      <div className="space-y-3 max-h-52 overflow-y-auto custom-scrollbar pr-1 bg-zinc-950/40 p-4 rounded-2xl border border-white/5">
+                        {scene.dialogues && scene.dialogues.length > 0 ? (
+                          scene.dialogues.map((dialogue) => (
+                            <div key={dialogue.id} className="text-xs space-y-1 border-b border-white/5 pb-2 last:border-b-0 last:pb-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-magma text-[10px] uppercase tracking-wider">{dialogue.character}</span>
+                                {dialogue.parenthetical && (
+                                  <span className="text-[9px] text-zinc-500 italic">({dialogue.parenthetical})</span>
+                                )}
+                              </div>
+                              <p className="text-zinc-300 leading-relaxed font-sans">{dialogue.text || <em className="text-zinc-600">fala vazia...</em>}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-[10px] text-zinc-600 italic">Nenhum diálogo inserido para esta cena.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div 
+          ref={scrollRef}
+          className="w-full overflow-x-auto custom-scrollbar pb-10 -mx-4 px-4"
+        >
+          <Reorder.Group 
+            axis="x" 
+            values={project.scenes || []} 
+            onReorder={handleReorderScenes}
+            className="flex gap-8 pb-8 snap-x min-w-max items-start"
+          >
+            {(project.scenes || []).map((scene, index) => (
+              <Reorder.Item 
+                key={scene.id} 
+                value={scene}
+                className="glass-card overflow-hidden relative group/scene h-fit min-w-[450px] w-[450px] snap-center flex-shrink-0 cursor-grab active:cursor-grabbing hover:border-magma/30 transition-colors"
+              >
+              <div className="absolute top-0 left-0 w-full h-1.5 transition-colors" style={{ backgroundColor: scene.color || '#F27D26' }} />
+              
+              <div className="bg-white/5 px-6 py-4 flex items-center justify-between border-b border-white/5">
+                <div className="flex items-center gap-4">
+                  <GripHorizontal className="w-4 h-4 text-zinc-700 cursor-grab active:cursor-grabbing" />
+                  <span className="text-2xl font-display opacity-10 tracking-tighter">#{scene.number}</span>
                   <input 
-                    id={`file-${scene.id}`}
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
+                    value={scene.title}
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, visualPreview: reader.result as string } : s);
-                          onUpdate({ scenes });
-                        };
-                        reader.readAsDataURL(file);
-                      }
+                      const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, title: e.target.value } : s);
+                      onUpdate({ scenes });
                     }}
+                    className="bg-transparent border-none focus:outline-none cinematic-title text-lg p-0 text-white w-full"
+                    placeholder="Título da Cena"
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => {
+                    const scenes = project.scenes.filter(s => s.id !== scene.id).map((s, i) => ({ ...s, number: i + 1 }));
+                    onUpdate({ scenes });
+                  }} className="text-zinc-600 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                      <Camera className="w-3 h-3" /> Câmera
+                    </label>
+                    <input 
+                      placeholder="Perspectiva..."
+                      value={scene.cameraPerspective}
+                      onChange={(e) => {
+                        const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, cameraPerspective: e.target.value } : s);
+                        onUpdate({ scenes });
+                      }}
+                      className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2 focus:outline-none focus:border-magma/50 transition-all text-xs font-medium text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                      <Clock className="w-3 h-3" /> Duração
+                    </label>
+                    <input 
+                      type="number"
+                      value={scene.duration}
+                      onChange={(e) => {
+                        const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, duration: parseInt(e.target.value) || 0 } : s);
+                        onUpdate({ scenes });
+                      }}
+                      className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2 focus:outline-none focus:border-magma/50 transition-all text-xs font-medium text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                    <ImageIcon className="w-3 h-3" /> Preview Visual
+                  </label>
+                  <div 
+                    className="aspect-video bg-obsidian/50 rounded-2xl border border-dashed border-white/5 flex items-center justify-center overflow-hidden group/thumb relative"
+                    onClick={() => document.getElementById(`file-${scene.id}`)?.click()}
+                  >
+                    {scene.visualPreview ? (
+                      <img src={scene.visualPreview} className="w-full h-full object-cover" alt="Preview" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-zinc-700 group-hover/thumb:text-zinc-400 transition-colors">
+                        <Plus className="w-6 h-6" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Upload Frame</span>
+                      </div>
+                    )}
+                    <input 
+                      id={`file-${scene.id}`}
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, visualPreview: reader.result as string } : s);
+                            onUpdate({ scenes });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
+                      <Film className="w-3.5 h-3.5 text-magma" /> Claquete de Cinema (Slate)
+                    </label>
+                  </div>
+                  
+                  <div className="border border-white/10 rounded-xl overflow-hidden bg-zinc-950 flex flex-col font-mono text-[9px] uppercase">
+                    <div className="h-6 bg-zinc-900 flex overflow-hidden relative border-b border-white/10">
+                      <div className="absolute inset-0 flex">
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div 
+                            key={i} 
+                            className="w-8 h-8 bg-white origin-bottom -rotate-45 flex-shrink-0" 
+                            style={{ 
+                              backgroundColor: i % 2 === 0 ? '#ffffff' : '#000000',
+                              marginLeft: i === 0 ? '-10px' : '-2px'
+                            }} 
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-3 space-y-2.5">
+                      <div className="grid grid-cols-3 gap-2 border-b border-white/5 pb-2">
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-zinc-500 font-bold block">ROLL</span>
+                          <input 
+                            value={scene.roll || ''}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, roll: e.target.value } : s);
+                              onUpdate({ scenes });
+                            }}
+                            placeholder="A01"
+                            className="w-full bg-white/5 border border-white/5 rounded px-2 py-1 text-center font-bold text-white text-xs placeholder:text-zinc-700 uppercase focus:outline-none focus:border-magma/40"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-zinc-500 font-bold block">SCENE</span>
+                          <input 
+                            value={scene.slateScene !== undefined ? scene.slateScene : scene.number.toString()}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, slateScene: e.target.value } : s);
+                              onUpdate({ scenes });
+                            }}
+                            placeholder={scene.number.toString()}
+                            className="w-full bg-white/5 border border-white/5 rounded px-2 py-1 text-center font-bold text-white text-xs placeholder:text-zinc-700 uppercase focus:outline-none focus:border-magma/40"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-zinc-500 font-bold block">TAKE</span>
+                          <input 
+                            value={scene.take || ''}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, take: e.target.value } : s);
+                              onUpdate({ scenes });
+                            }}
+                            placeholder="1"
+                            className="w-full bg-white/5 border border-white/5 rounded px-2 py-1 text-center font-bold text-white text-xs placeholder:text-zinc-700 uppercase focus:outline-none focus:border-magma/40"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <span className="text-[7px] text-zinc-500 font-bold block mb-1">INT/EXT</span>
+                          <select
+                            value={scene.intExt || ''}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, intExt: e.target.value as any } : s);
+                              onUpdate({ scenes });
+                            }}
+                            className="w-full bg-white/5 border border-white/5 rounded px-1 py-1 text-center font-bold text-white text-[8px] focus:outline-none"
+                          >
+                            <option value="">--</option>
+                            <option value="INT">INT</option>
+                            <option value="EXT">EXT</option>
+                          </select>
+                        </div>
+                        <div>
+                          <span className="text-[7px] text-zinc-500 font-bold block mb-1">DAY/NIGHT</span>
+                          <select
+                            value={scene.dayNight || ''}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, dayNight: e.target.value as any } : s);
+                              onUpdate({ scenes });
+                            }}
+                            className="w-full bg-white/5 border border-white/5 rounded px-1 py-1 text-center font-bold text-white text-[8px] focus:outline-none"
+                          >
+                            <option value="">--</option>
+                            <option value="DAY">DIA</option>
+                            <option value="NIGHT">NOITE</option>
+                          </select>
+                        </div>
+                        <div>
+                          <span className="text-[7px] text-zinc-500 font-bold block mb-1">SOUND/MOS</span>
+                          <select
+                            value={scene.soundMos || ''}
+                            onChange={(e) => {
+                              const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, soundMos: e.target.value as any } : s);
+                              onUpdate({ scenes });
+                            }}
+                            className="w-full bg-white/5 border border-white/5 rounded px-1 py-1 text-center font-bold text-white text-[8px] focus:outline-none"
+                          >
+                            <option value="">--</option>
+                            <option value="SOUND">SOM</option>
+                            <option value="MOS">MOS</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                    <PenTool className="w-3 h-3" /> Roteiro / Ação
+                  </label>
+                  <AutocompleteTextArea 
+                    value={scene.script}
+                    onChange={(val) => {
+                      const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, script: val } : s);
+                      onUpdate({ scenes });
+                    }}
+                    placeholder="Descreva a ação..."
+                    rows={4}
+                    className="text-xs bg-white/5 border-white/5 rounded-xl text-zinc-300"
+                    project={project}
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                  <PenTool className="w-3 h-3" /> Roteiro / Ação
-                </label>
-                <TextArea 
-                  value={scene.script}
-                  onChange={(val) => {
-                    const scenes = project.scenes.map(s => s.id === scene.id ? { ...s, script: val } : s);
-                    onUpdate({ scenes });
-                  }}
-                  placeholder="Descreva a ação..."
-                  rows={4}
-                  className="text-xs bg-white/5 border-white/5 rounded-xl"
-                />
-              </div>
-            </div>
-          </Reorder.Item>
-        ))}
-      </Reorder.Group>
+            </Reorder.Item>
+          ))}
+        </Reorder.Group>
       </div>
+      )}
 
       {project.scenes.length === 0 && (
         <div className="py-20 flex flex-col items-center justify-center text-zinc-600 glass-card border-dashed">
@@ -1639,7 +1887,7 @@ function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'writing' | 'idea' | 'script' | 'timeline' | 'vfx'>('writing');
+  const [activeTab, setActiveTab] = useState<'writing' | 'idea' | 'script' | 'dialogue' | 'timeline' | 'vfx' | 'production' | 'notes'>('writing');
   const [loading, setLoading] = useState(true);
 
   // Auth States
@@ -1705,6 +1953,8 @@ function App() {
                 sceneIds: t.sceneIds ? Object.values(t.sceneIds) : []
               })) : [],
               activeTimelineId: project.activeTimelineId || null,
+              noteBlocks: project.noteBlocks ? Object.values(project.noteBlocks) : [],
+              references: project.references ? Object.values(project.references) : [],
             };
           });
           setProjects(projectList as Project[]);
@@ -1796,7 +2046,9 @@ function App() {
         vfxNotes: [],
         markers: [],
         timelines: [],
-        activeTimelineId: null
+        activeTimelineId: null,
+        noteBlocks: [],
+        references: []
       };
       await set(newProjectRef, newProject);
       setCurrentProjectId(newProjectRef.key);
@@ -1966,8 +2218,20 @@ function App() {
       pdf.line(margin, y, pageWidth - margin, y);
       y += 5;
       
-      addText(`CENA ${scene.number}: ${scene.title.toUpperCase()}`, 14, 'bold');
-      addText(`${scene.cameraPerspective || 'N/A'} | ${scene.duration}s`, 9, 'italic', [120, 120, 120]);
+      const customSlateScene = scene.slateScene !== undefined && scene.slateScene !== '' ? scene.slateScene : scene.number.toString();
+      addText(`CENA ${scene.number} (CLAK: ${customSlateScene}): ${scene.title.toUpperCase()}`, 14, 'bold');
+      
+      const slateParts = [
+        scene.cameraPerspective ? `CÂMERA: ${scene.cameraPerspective}` : null,
+        `${scene.duration}s`,
+        scene.roll ? `ROLL: ${scene.roll}` : null,
+        scene.take ? `TAKE: ${scene.take}` : null,
+        scene.intExt ? `LOC: ${scene.intExt}` : null,
+        scene.dayNight ? `PERÍODO: ${scene.dayNight === 'DAY' ? 'DIA' : 'NOITE'}` : null,
+        scene.soundMos ? `ÁUDIO: ${scene.soundMos}` : null
+      ].filter(Boolean);
+      
+      addText(slateParts.join(' | '), 9, 'italic', [120, 120, 120]);
       y += 2;
       
       pdf.setFont('courier', 'normal');
@@ -1982,6 +2246,24 @@ function App() {
         addText(`${note.type.toUpperCase()}`, 11, 'bold', [255, 77, 0]);
         addText(`CENA: ${note.sceneId || 'GERAL'}`, 9, 'normal', [100, 100, 100]);
         addText(note.description || 'N/A', 11);
+        y += 5;
+      });
+    }
+
+    // 7. Production Notes
+    if (currentProject.noteBlocks && currentProject.noteBlocks.length > 0) {
+      addSectionHeader('07. CADERNO DE PRODUÇÃO');
+      currentProject.noteBlocks.forEach(block => {
+        addText(`${block.category.toUpperCase()} / ${block.title.toUpperCase()}`, 12, 'bold', [255, 77, 0]);
+        
+        // Remove markdown tags for cleaner PDF rendering
+        const cleanContent = block.content
+          .replace(/#+\s+/g, '') // remove headers
+          .replace(/-\s*\[([ xX])\]/g, '• ') // replace checkbox with bullets
+          .replace(/-\s+/g, '• ') // replace plain list with bullets
+          .replace(/\*\*/g, ''); // remove bold asterisks
+          
+        addText(cleanContent, 10, 'normal', [80, 80, 80]);
         y += 5;
       });
     }
@@ -2195,8 +2477,11 @@ function App() {
                 { id: 'writing', icon: PenTool, label: 'Redação' },
                 { id: 'idea', icon: Sparkles, label: 'Ideia' },
                 { id: 'script', icon: Layout, label: 'Roteiro' },
+                { id: 'dialogue', icon: MessageSquare, label: 'Falas' },
                 { id: 'timeline', icon: Clock, label: 'Timeline' },
                 { id: 'vfx', icon: Wand2, label: 'VFX' },
+                { id: 'production', icon: LayoutGrid, label: 'Produção' },
+                { id: 'notes', icon: FileText, label: 'Anotações' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -2254,8 +2539,11 @@ function App() {
                 {activeTab === 'writing' && <Writing project={currentProject!} onUpdate={updateProject} />}
                 {activeTab === 'idea' && <IdeaTab project={currentProject!} onUpdate={updateProject} />}
                 {activeTab === 'script' && <ScriptTab project={currentProject!} onUpdate={updateProject} handleReorderScenes={handleReorderScenes} />}
+                {activeTab === 'dialogue' && <DialogueTab project={currentProject!} onUpdate={updateProject} />}
                 {activeTab === 'timeline' && <Timeline project={currentProject!} onUpdate={updateProject} />}
                 {activeTab === 'vfx' && <VFXTab project={currentProject!} onUpdate={updateProject} />}
+                {activeTab === 'production' && <ProductionTab project={currentProject!} onUpdate={updateProject} />}
+                {activeTab === 'notes' && <NotesTab project={currentProject!} onUpdate={updateProject} />}
               </AnimatePresence>
             </div>
           </main>
